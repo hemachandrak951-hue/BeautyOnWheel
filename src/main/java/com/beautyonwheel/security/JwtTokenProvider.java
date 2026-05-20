@@ -64,9 +64,8 @@ public class JwtTokenProvider {
 
     public boolean isTokenValid(String token) {
         try {
-            Jwts.parserBuilder()
+            Jwts.parser()
                 .setSigningKey(getSigningKey())
-                .build()
                 .parseClaimsJws(token);
             return true;
         } catch (Exception e) {
@@ -79,9 +78,8 @@ public class JwtTokenProvider {
     }
 
     private Claims extractAllClaims(String token) {
-        return Jwts.parserBuilder()
+        return Jwts.parser()
             .setSigningKey(getSigningKey())
-            .build()
             .parseClaimsJws(token)
             .getBody();
     }
