@@ -1,0 +1,14 @@
+<!-- 1. Header Navigation (Global) -->
+<app-header (openAuthModal)="openAuth()"></app-header>
+
+<!-- 2. Router Outlet (Navigates dynamically to / or /dashboard) -->
+<router-outlet></router-outlet>
+
+<!-- 3. Sticky Floating Cart Drawer Panel -->
+<app-cart-drawer></app-cart-drawer>
+
+<!-- 4. Interactive Authentication Overlay Modal -->
+<app-auth-modal *ngIf="isAuthModalOpen" (closeModal)="closeAuth()"></app-auth-modal>
+
+<!-- 5. Floating Global Alert Toast system -->
+<app-toast></app-toast>

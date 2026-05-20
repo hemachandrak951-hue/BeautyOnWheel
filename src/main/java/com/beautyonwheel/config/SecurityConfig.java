@@ -45,6 +45,8 @@ public class SecurityConfig {
                 .requestMatchers(PathRequest.toH2Console()).permitAll()
                 // Health check endpoints
                 .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
+                // Dashboard endpoints - require authentication
+                .requestMatchers("/api/v1/dashboard/**").authenticated()
                 // All other endpoints require authentication
                 .anyRequest().authenticated()
             )
@@ -56,9 +58,34 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(Collections.singletonList("http://localhost:4200"));
-        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
-        configuration.setAllowedHeaders(Collections.singletonList("*"));
+        
+        // Allow requests from Angular frontend
+        configuration.setAllowedOrigins(Arrays.asList(
+            "http://localhost:4200",
+            "http://localhost:4300",
+            "http://localhost:3000"
+        ));
+        
+        // Allow standard HTTP methods
+        configuration.setAllowedMethods(Arrays.asList(
+            "GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH", "HEAD"
+        ));
+        
+        // Allow common headers including Authorization
+        configuration.setAllowedHeaders(Arrays.asList(
+            "Authorization",
+            "Content-Type",
+            "Accept",
+            "X-Requested-With",
+            "Cache-Control"
+        ));
+        
+        // Expose necessary response headers
+        configuration.setExposedHeaders(Arrays.asList(
+            "Authorization",
+            "Content-Type"
+        ));
+        
         configuration.setAllowCredentials(true);
         configuration.setMaxAge(3600L);
 

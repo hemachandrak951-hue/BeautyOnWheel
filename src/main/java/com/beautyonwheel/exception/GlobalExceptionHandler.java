@@ -1,11 +1,13 @@
 package com.beautyonwheel.exception;
 
+import io.jsonwebtoken.JwtException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -110,6 +112,77 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
             HttpStatus.BAD_REQUEST.value(),
             ex.getMessage(),
             "Invalid input",
+            getRequestPath(request)
+        );
+
+        return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+    }
+
+    /**
+     * Handle JWT exceptions (invalid or expired tokens)
+     */
+    @ExceptionHandler(JwtException.class)
+    public ResponseEntity<ApiErrorResponse> handleJwtException(
+        JwtException ex,
+        WebRequest request) {
+
+        log.warn("JWT validation error: {}", ex.getMessage());
+
+        ApiErrorResponse response = ApiErrorResponse.of(
+            HttpStatus.UNAUTHORIZED.value(),
+            "Invalid or expired authentication token",
+            "JWT token validation failed",
+            getRequestPath(request)
+        );
+
+        return new ResponseEntity<>(response, HttpStatus.UNAUTHORIZED);
+    }
+
+    /**
+     * Handle access denied exceptions (insufficient permissions)
+     */
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ApiErrorResponse> handleAccessDeniedException(
+        AccessDeniedException ex,
+        WebRequest request) {
+
+        log.warn("Access denied: {}", ex.getMessage());
+
+        ApiErrorResponse response = ApiErrorResponse.of(
+            HttpStatus.FORBIDDEN.value(),
+            "Access denied - insufficient permissions",
+            "You do not have permission to access this resource",
+            getRequestPath(request)
+        );
+
+        return new ResponseEntity<>(response, HttpStatus.FORBIDDEN);
+    }
+
+    /**
+     * Handle illegal state exceptions (user not authenticated)
+     */
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<ApiErrorResponse> handleIllegalStateException(
+        IllegalStateException ex,
+        WebRequest request) {
+
+        log.warn("Illegal state: {}", ex.getMessage());
+
+        // Return 401 for authentication-related state exceptions
+        if (ex.getMessage() != null && ex.getMessage().contains("authenticated")) {
+            ApiErrorResponse response = ApiErrorResponse.of(
+                HttpStatus.UNAUTHORIZED.value(),
+                "Authentication required",
+                "User is not authenticated",
+                getRequestPath(request)
+            );
+            return new ResponseEntity<>(response, HttpStatus.UNAUTHORIZED);
+        }
+
+        ApiErrorResponse response = ApiErrorResponse.of(
+            HttpStatus.BAD_REQUEST.value(),
+            ex.getMessage(),
+            "Invalid application state",
             getRequestPath(request)
         );
 
