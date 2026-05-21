@@ -4,9 +4,11 @@ import com.beautyonwheel.dto.DashboardResponse;
 import com.beautyonwheel.dto.ServiceItemDTO;
 import com.beautyonwheel.dto.UserDTO;
 import com.beautyonwheel.entity.ServiceItem;
+import com.beautyonwheel.entity.SuggestedProduct;
 import com.beautyonwheel.entity.User;
 import com.beautyonwheel.exception.ResourceNotFoundException;
 import com.beautyonwheel.repository.ServiceItemRepository;
+import com.beautyonwheel.repository.SuggestedProductRepository;
 import com.beautyonwheel.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -29,6 +31,7 @@ public class DashboardService {
 
     private final UserRepository userRepository;
     private final ServiceItemRepository serviceItemRepository;
+    private final SuggestedProductRepository suggestedProductRepository;
     private final AuthService authService;
 
     /**
@@ -141,6 +144,67 @@ public class DashboardService {
         String userEmail = getCurrentUserEmail();
         User user = authService.getUserByEmail(userEmail);
         return UserDTO.fromEntity(user);
+    }
+
+    /**
+     * Get suggested products for the currently authenticated user
+     * Populates database with default products if empty (defensive seeding)
+     * 
+     * @return List of SuggestedProduct items
+     */
+    @Transactional
+    public List<SuggestedProduct> getSuggestedProductsForCurrentUser() {
+        String userEmail = getCurrentUserEmail();
+        User user = authService.getUserByEmail(userEmail);
+        log.info("Fetching suggested products for user: {} (ID: {})", userEmail, user.getId());
+        
+        List<SuggestedProduct> products = suggestedProductRepository.findByCustomerId(user.getId());
+        
+        if (products.isEmpty()) {
+            log.info("No suggested products found in PostgreSQL for user. Performing defensive seeding...");
+            List<SuggestedProduct> defaultProducts = List.of(
+                SuggestedProduct.builder()
+                    .customerId(user.getId())
+                    .stylistName("Stylist Priya Sharma (Senior Hair Therapist)")
+                    .productName("Vedic Valley Moroccan Argan Hair Oil")
+                    .description("Deeply nourishes dry scalp, prevents breakages, and restores natural keratin sheen. Recommended for dry or color-treated hair.")
+                    .storePlatform("AMAZON")
+                    .affiliateUrl("https://www.amazon.in")
+                    .imageUrl("")
+                    .build(),
+                SuggestedProduct.builder()
+                    .customerId(user.getId())
+                    .stylistName("Stylist Pooja Sen (Bridal Makeup Expert)")
+                    .productName("O3+ Bridal Glow Facial Kit with Peeling Gel")
+                    .description("Ultimate skin whitening, tan clearing, and cell hydration booster. Maintain your high-end salon glow at home.")
+                    .storePlatform("MYNTRA")
+                    .affiliateUrl("https://www.myntra.com")
+                    .imageUrl("")
+                    .build(),
+                SuggestedProduct.builder()
+                    .customerId(user.getId())
+                    .stylistName("Stylist Ananya Das (Skin Consultant)")
+                    .productName("Derma Co 10% Niacinamide Face Serum")
+                    .description("Clears acne marks, controls sebum production, and strengthens skin barrier. Recommended for oily/acne-prone skin.")
+                    .storePlatform("FLIPKART")
+                    .affiliateUrl("https://www.flipkart.com")
+                    .imageUrl("")
+                    .build(),
+                SuggestedProduct.builder()
+                    .customerId(user.getId())
+                    .stylistName("Stylist Priya Sharma (Senior Hair Therapist)")
+                    .productName("BBlunt Intense Moisture Hair Mask")
+                    .description("Enriched with Jojoba oil and Vitamin E. Softens rough hair and provides professional moisturization within 10 minutes.")
+                    .storePlatform("AMAZON")
+                    .affiliateUrl("https://www.amazon.in")
+                    .imageUrl("")
+                    .build()
+            );
+            products = suggestedProductRepository.saveAll(defaultProducts);
+            log.info("Defensive seeding complete. {} products registered for customer id {}", products.size(), user.getId());
+        }
+        
+        return products;
     }
 
     /**

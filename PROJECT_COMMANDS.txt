@@ -1,0 +1,165 @@
+BEAUTY ON WHEEL - PROJECT COMMANDS
+==================================
+
+1. OPEN PROJECT
+---------------
+Git Bash:
+cd /d/BeautyOnWheel
+
+PowerShell:
+cd D:\BeautyOnWheel
+
+
+2. BACKEND - SPRING BOOT
+------------------------
+Start backend:
+.\mvnw.cmd spring-boot:run
+
+Backend URL:
+http://localhost:8080
+
+Test backend:
+curl http://localhost:8080/api/v1/home/categories
+
+Run backend tests:
+.\mvnw.cmd test
+
+Build backend:
+.\mvnw.cmd clean package
+
+
+3. FRONTEND - ANGULAR
+---------------------
+Open another terminal:
+cd /d/BeautyOnWheel/frontend
+
+Install dependencies:
+npm install
+
+Start frontend:
+npm start
+
+Frontend URL:
+http://localhost:4200
+
+Build frontend:
+npm run build
+
+
+4. DATABASE - POSTGRESQL
+------------------------
+Current local DB config:
+URL: jdbc:postgresql://localhost:5432/beautyonwheel_db
+Username: postgres
+Password: C#@ndu951
+
+Check PostgreSQL service in PowerShell:
+Get-Service *postgres*
+
+Start PostgreSQL service in PowerShell:
+Start-Service postgresql-x64-14
+
+If your service name is different, replace postgresql-x64-14 with the actual name.
+
+Open psql:
+psql -U postgres
+
+Create database inside psql:
+CREATE DATABASE beautyonwheel_db;
+
+List databases inside psql:
+\l
+
+Exit psql:
+\q
+
+
+5. H2 DATABASE
+--------------
+H2 console URL:
+http://localhost:8080/h2-console
+
+H2 login:
+JDBC URL: jdbc:h2:mem:beautyonwheel_local
+User Name: sa
+Password: leave blank
+
+Note:
+H2 works only when the app is configured to use H2 in application-local.properties.
+Your current application-local.properties is configured for PostgreSQL.
+
+
+6. TEST REGISTER API
+--------------------
+curl --location 'http://localhost:8080/api/v1/auth/register' ^
+--header 'Content-Type: application/json' ^
+--header 'Accept: application/json' ^
+--data-raw '{
+  "name": "John Doe",
+  "email": "john@example.com",
+  "phone": "9876543210",
+  "dateOfBirth": "1998-05-15",
+  "password": "SecurePass123!",
+  "role": "ROLE_CUSTOMER"
+}'
+
+
+7. CHECK AND KILL PORT 8080
+---------------------------
+Check port 8080 in PowerShell:
+Get-NetTCPConnection -LocalPort 8080 -State Listen
+
+Check process details:
+Get-Process -Id <PID>
+
+Kill process:
+taskkill /PID <PID> /F
+
+If access is denied, open PowerShell as Administrator and run the same command.
+
+
+8. GIT COMMANDS
+---------------
+Check status:
+git status
+
+Add all files:
+git add .
+
+Commit:
+git commit -m "first push"
+
+Check branch:
+git branch
+
+Check remote:
+git remote -v
+
+Push to master:
+git push origin master
+
+First push to master:
+git push -u origin master
+
+Push to main:
+git push origin main
+
+First push to main:
+git push -u origin main
+
+
+9. NORMAL DAILY STARTUP
+-----------------------
+Terminal 1 - backend:
+cd /d/BeautyOnWheel
+.\mvnw.cmd spring-boot:run
+
+Terminal 2 - frontend:
+cd /d/BeautyOnWheel/frontend
+npm start
+
+Browser:
+http://localhost:4200
+
+Backend:
+http://localhost:8080

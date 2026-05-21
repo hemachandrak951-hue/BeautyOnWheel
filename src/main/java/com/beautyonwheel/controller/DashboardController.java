@@ -2,6 +2,7 @@ package com.beautyonwheel.controller;
 
 import com.beautyonwheel.dto.DashboardResponse;
 import com.beautyonwheel.dto.ServiceItemDTO;
+import com.beautyonwheel.entity.SuggestedProduct;
 import com.beautyonwheel.service.DashboardService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -29,12 +30,10 @@ public class DashboardController {
     /**
      * Get complete customer dashboard with user profile and services catalog
      * 
-     * Security: Requires valid JWT token. Only accessible to CUSTOMER and STYLIST roles.
+     * Security: Requires valid JWT token. Only accessible to CUSTOMER, STYLIST, and ADMIN roles.
      * The user context is automatically extracted from the JWT token via SecurityContextHolder.
      * 
      * @return 200 OK with DashboardResponse containing user profile and services grouped by category
-     * @throws AccessDeniedException if JWT token is invalid or expired
-     * @throws ResourceNotFoundException if user is not found
      */
     @GetMapping("/home")
     @PreAuthorize("hasAnyRole('CUSTOMER', 'STYLIST', 'ADMIN')")
@@ -100,5 +99,22 @@ public class DashboardController {
         return ResponseEntity
             .status(HttpStatus.OK)
             .body(services);
+    }
+
+    /**
+     * Get suggested products recommended by stylists for the authenticated user
+     * 
+     * @return 200 OK with list of suggested products
+     */
+    @GetMapping("/suggested-products")
+    @PreAuthorize("hasAnyRole('CUSTOMER', 'STYLIST', 'ADMIN')")
+    public ResponseEntity<List<SuggestedProduct>> getSuggestedProducts() {
+        log.info("Suggested products request received");
+
+        List<SuggestedProduct> products = dashboardService.getSuggestedProductsForCurrentUser();
+
+        return ResponseEntity
+            .status(HttpStatus.OK)
+            .body(products);
     }
 }

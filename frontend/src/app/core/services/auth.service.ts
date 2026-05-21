@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Observable, BehaviorSubject, of, throwError } from 'rxjs';
-import { tap, catchError, delay } from 'rxjs/operators';
+import { tap, catchError, delay, map, switchMap } from 'rxjs/operators';
 import { UserProfileResponse, AuthTokenResponse } from '../models/types';
 import { environment } from '../../../environments/environment';
 
@@ -57,62 +57,55 @@ export class AuthService {
   }
 
   public setMockMode(enabled: boolean): void {
-    this.isMockModeSubject.next(enabled);
+    this.isMockModeSubject.next(false);
   }
 
   /**
    * Performs user login.
-   * Sends request to backend. If the backend is unreachable/offline, falls back to a simulated mock observable.
+   * Sends request to backend.
    */
   public login(credentials: { identifier: string; password: string }): Observable<AuthTokenResponse> {
-    if (this.isMockModeSubject.value) {
-      return this.simulateMockLogin(credentials);
-    }
-
     return this.http.post<AuthTokenResponse>(`${environment.apiUrl}/auth/login`, credentials).pipe(
       tap(response => {
         console.log('Real backend login successful', response);
         this.saveSession(response);
-      }),
-      catchError(error => {
-        console.warn('Real backend login failed or server unreachable. Falling back to mock session streaming.', error);
-        this.isMockModeSubject.next(true); // Automatically switch to mock mode on connection failure
-        return this.simulateMockLogin(credentials);
       })
     );
   }
 
   /**
    * Performs user registration.
-   * Sends request to backend. If the backend is unreachable/offline, falls back to simulated registration.
+   * Sends request to backend.
    */
   public register(payload: any): Observable<UserProfileResponse> {
-    // Standardize role to ROLE_CUSTOMER if not supplied
     const registrationData = {
       ...payload,
       role: payload.role || 'ROLE_CUSTOMER'
     };
 
-    if (this.isMockModeSubject.value) {
-      return this.simulateMockRegister(registrationData);
-    }
-
     return this.http.post<UserProfileResponse>(`${environment.apiUrl}/auth/register`, registrationData).pipe(
       tap(response => {
         console.log('Real backend registration successful', response);
-        // Automatically log user in after successful registration in high conversion flow
-        const autoLoginToken: AuthTokenResponse = {
-          access_token: 'mock_jwt_after_register_' + Math.random().toString(36).substring(2),
-          token_type: 'Bearer',
-          expires_in: 86400,
-          user: response
-        };
-        this.saveSession(autoLoginToken);
       }),
-      catchError(error => {
-        console.warn('Real backend registration failed or server unreachable. Falling back to mock registration streaming.', error);
-        this.isMockModeSubject.next(true); // Switch to mock mode
-        return this.simulateMockRegister(registrationData);
+      // Switch map to login so the login call completes before we proceed,
+      // but we still return the user profile response at the end!
+      switchMap(userProfile => {
+        return this.login({
+          identifier: payload.email,
+          password: payload.password
+        }).pipe(
+          tap(authToken => {
+            console.log('Seamless auto-login successful', authToken);
+          }),
+          // Map back to the original UserProfileResponse so the signature of register() is preserved!
+          map(() => userProfile),
+          // In case the auto-login fails for some reason, we still want to return the userProfile
+          // so the registration success itself isn't broken
+          catchError(loginErr => {
+            console.error('Auto-login failed after successful registration:', loginErr);
+            return of(userProfile);
+          })
+        );
       })
     );
   }
@@ -127,7 +120,7 @@ export class AuthService {
 
   /**
    * Update user profile.
-   * Supports both mock session streaming and real backend HTTP operations.
+   * Supports real backend HTTP operations.
    */
   public updateProfile(updatedUser: Partial<UserProfileResponse>): Observable<UserProfileResponse> {
     const current = this.currentUserSubject.value;
@@ -135,16 +128,6 @@ export class AuthService {
       return throwError(() => new Error('No user is currently logged in.'));
     }
     const newProfile = { ...current, ...updatedUser, updatedAt: new Date().toISOString() };
-    
-    if (this.isMockModeSubject.value) {
-      return of(newProfile).pipe(
-        delay(1000),
-        tap(() => {
-          localStorage.setItem(this.AUTH_KEY, JSON.stringify(newProfile));
-          this.currentUserSubject.next(newProfile);
-        })
-      );
-    }
     
     const token = localStorage.getItem(this.TOKEN_KEY);
     const headers = new HttpHeaders().set('Authorization', `Bearer ${token}`);
@@ -154,105 +137,7 @@ export class AuthService {
         const savedUser = { ...current, ...response };
         localStorage.setItem(this.AUTH_KEY, JSON.stringify(savedUser));
         this.currentUserSubject.next(savedUser);
-      }),
-      catchError(error => {
-        console.warn('Real profile update failed. Falling back to local state updates.', error);
-        localStorage.setItem(this.AUTH_KEY, JSON.stringify(newProfile));
-        this.currentUserSubject.next(newProfile);
-        return of(newProfile);
       })
     );
-  }
-
-  // --- MOCK SIMULATORS ---
-
-  private simulateMockLogin(credentials: { identifier: string; password: string }): Observable<AuthTokenResponse> {
-    console.log('Simulating mock login stream for:', credentials.identifier);
-    
-    // Simulate API delay
-    return of(true).pipe(
-      delay(1200), // Simulate network latency
-      tap(() => {
-        // Simple password validation for simulation purposes
-        if (credentials.password === 'fail_login') {
-          throw new Error('Invalid email/phone or password combination.');
-        }
-      }),
-      tap(() => {
-        // Derive name from identifier or set mock name
-        let name = 'Pooja Sharma';
-        if (credentials.identifier.includes('@')) {
-          const part = credentials.identifier.split('@')[0];
-          name = part.charAt(0).toUpperCase() + part.slice(1);
-        }
-
-        const mockUser: UserProfileResponse = {
-          id: Math.floor(Math.random() * 1000) + 1,
-          name: name,
-          email: credentials.identifier.includes('@') ? credentials.identifier : `${credentials.identifier}@example.com`,
-          phone: credentials.identifier.match(/^\d+$/) ? credentials.identifier : '9876543210',
-          dateOfBirth: '1995-08-12',
-          role: 'ROLE_CUSTOMER',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        };
-
-        const mockResponse: AuthTokenResponse = {
-          access_token: 'mock_jwt_token_header_payload_signature_beauty_on_wheel',
-          token_type: 'Bearer',
-          expires_in: 86400,
-          user: mockUser
-        };
-
-        this.saveSession(mockResponse);
-      }),
-      // We map the return to the actual token response object
-      catchError(err => throwError(() => new Error(err.message))),
-      // Convert to AuthTokenResponse
-      tap(() => {}),
-      delay(0) // compile helper
-    ) as unknown as Observable<AuthTokenResponse>;
-  }
-
-  private simulateMockRegister(payload: any): Observable<UserProfileResponse> {
-    console.log('Simulating mock registration stream for:', payload.email);
-
-    return of(true).pipe(
-      delay(1500), // Latency simulation
-      tap(() => {
-        // Validation check simulations
-        if (payload.email === 'taken@example.com') {
-          throw new Error('Email address is already in use by another customer.');
-        }
-        if (payload.phone === '0000000000') {
-          throw new Error('Invalid phone number provided.');
-        }
-      }),
-      tap(() => {
-        const mockUser: UserProfileResponse = {
-          id: Math.floor(Math.random() * 1000) + 1,
-          name: payload.name,
-          email: payload.email,
-          phone: payload.phone,
-          dateOfBirth: payload.dateOfBirth,
-          role: payload.role || 'ROLE_CUSTOMER',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        };
-
-        // Automate login on mock success
-        const autoLoginToken: AuthTokenResponse = {
-          access_token: 'mock_jwt_token_register_auto_' + Math.random().toString(36).substring(2),
-          token_type: 'Bearer',
-          expires_in: 86400,
-          user: mockUser
-        };
-        this.saveSession(autoLoginToken);
-      }),
-      catchError(err => throwError(() => new Error(err.message))),
-      // Return UserProfileResponse
-      tap(() => {}),
-      delay(0)
-    ) as unknown as Observable<UserProfileResponse>;
   }
 }

@@ -1,0 +1,1 @@
+CREATE DATABASE beautyonwheel_db;
