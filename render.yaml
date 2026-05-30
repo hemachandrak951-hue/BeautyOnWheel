@@ -1,0 +1,45 @@
+services:
+  - type: web
+    name: beautyonwheel-auth-service
+    runtime: java
+    plan: standard
+    buildCommand: mvn clean package -DskipTests
+    startCommand: java -jar target/beautyonwheel-auth-service-*.jar --spring.profiles.active=prod
+    envVars:
+      - key: PORT
+        value: 8080
+      - key: SPRING_PROFILES_ACTIVE
+        value: prod
+      - key: DB_HOST
+        fromDatabase:
+          name: beautyonwheel-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: beautyonwheel-db
+          property: port
+      - key: DB_NAME
+        fromDatabase:
+          name: beautyonwheel-db
+          property: database
+      - key: DB_USERNAME
+        fromDatabase:
+          name: beautyonwheel-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: beautyonwheel-db
+          property: password
+      - key: JWT_SECRET
+        sync: false
+      - key: CORS_ALLOWED_ORIGINS
+        value: https://yourdomain.com
+      - key: SERVER_SSL_ENABLED
+        value: "false"
+
+databases:
+  - name: beautyonwheel-db
+    databaseName: beautyonwheel_prod
+    user: postgres
+    plan: standard
+    version: "14"
